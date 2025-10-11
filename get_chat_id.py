@@ -1,8 +1,18 @@
 """Quick script to get Telegram chat ID"""
 import requests
 import json
+import os
+from dotenv import load_dotenv
 
-TOKEN = "8443429617:AAEzr52J4bW3S2ovQfP02-n6NInAK4xNRcw"
+# Load environment variables
+load_dotenv()
+
+TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+if not TOKEN:
+    print("❌ ERROR: TELEGRAM_BOT_TOKEN not found in .env file!")
+    print("Please add your bot token to the .env file first.")
+    exit(1)
+
 url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
 
 try:
