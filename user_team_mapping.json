@@ -1,0 +1,46 @@
+{
+  "mappings": {
+    "1375980805": {
+      "team_id": 9,
+      "team_name": "\ud83d\udca9 Turd Sandwich \ud83e\udd6a"
+    },
+    "8106725792": {
+      "team_id": 10,
+      "team_name": "The Ambulance Chasers"
+    },
+    "6732553452": {
+      "team_id": 4,
+      "team_name": "First Down Syndrome"
+    }
+  },
+  "detected_users": {
+    "1375980805": {
+      "user_id": 1375980805,
+      "username": "loschtopher",
+      "first_name": "Topher",
+      "last_name": "Losch",
+      "display_name": "@loschtopher"
+    },
+    "8070036714": {
+      "user_id": 8070036714,
+      "username": "Mahi_Mike",
+      "first_name": "Mike",
+      "last_name": "Shannon",
+      "display_name": "@Mahi_Mike"
+    },
+    "8106725792": {
+      "user_id": 8106725792,
+      "username": null,
+      "first_name": "Tim",
+      "last_name": "McCartney",
+      "display_name": "Tim McCartney"
+    },
+    "6732553452": {
+      "user_id": 6732553452,
+      "username": null,
+      "first_name": "Kevin",
+      "last_name": "D",
+      "display_name": "Kevin D"
+    }
+  }
+}
