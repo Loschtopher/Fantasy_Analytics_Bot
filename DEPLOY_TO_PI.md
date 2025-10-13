@@ -68,17 +68,19 @@ Paste this (use your actual values):
 
 ```bash
 # Telegram Bot Configuration
-TELEGRAM_BOT_TOKEN=8443429617:AAGeQUK1jnKCwicCmU4-04hS9n7mzEwUoTU
-ALLOWED_CHAT_IDS=1375980805
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+ALLOWED_CHAT_IDS=your_chat_id_here
 
 # ESPN Fantasy Football Configuration
-ESPN_LEAGUE_ID=361353
-ESPN_SWID={AD9C8849-E351-41B7-9BDC-4085193C8A92}
-ESPN_S2=AECTisLqMTwjOmL8vJb3lBK9pfHSUcTMYKw4jVfYlBtOD97BDWOZypCGsXMhIiXc45JGNiqNYk0dZ6yDBysudNoWbp77O6kL8cjOfK9E/xYsJHxvri8mCgeMuBMzuR5SLLsY9PnQItRBxtn/AcQRwg6cGIFT9kgz79XJYdNpWJMIp5vSoqO/M4hYwRY74TBo/TgpMCpBOJxGeUp7mkw9PsA+XsVFkS2YFmH9bUz1223zYjInAdgR+mDIx4gi5eMIcHyXkvqjVKcmxnPSUg2xASLojgSv44811axLqbAh99TJmg==
+ESPN_LEAGUE_ID=your_league_id_here
+ESPN_SWID=your_swid_cookie_here
+ESPN_S2=your_espn_s2_cookie_here
 
 # The Odds API (Optional)
 ODDS_API_KEY=your_odds_api_key_here
 ```
+
+**⚠️ COPY YOUR ACTUAL VALUES** from your Windows PC's `.env` file before pasting!
 
 **Save:** Press `Ctrl+X`, then `Y`, then `Enter`
 
