@@ -1046,7 +1046,7 @@ class CommandHandlers:
                 return
             
             # STEP 2: Track waiver pickups (players NOT in Week 1)
-            waiver_pickups = {}  # player_id -> {name, position, team_owner, total_points, weeks_played, added_week}
+            waiver_pickups = {}  # player_id -> {name, position, team_owner, total_points, weeks_on_roster, added_week, last_seen_week}
             
             # Go through weeks 2+ to find waiver additions
             for week in range(2, current_week):
@@ -1082,8 +1082,9 @@ class CommandHandlers:
                             position_map = {1: 'QB', 2: 'RB', 3: 'WR', 4: 'TE', 5: 'K', 16: 'D/ST', 17: 'K'}
                             position = position_map.get(position_id, 'FLEX')
                             
-                            # Get points for this week
-                            points = player_entry.get('appliedStatTotal', 0)
+                            # Get points - appliedStatTotal is CUMULATIVE season total
+                            # So we only need to store the latest value, not sum across weeks
+                            cumulative_points = player_entry.get('appliedStatTotal', 0)
                             
                             # Track waiver pickup
                             if player_id not in waiver_pickups:
@@ -1091,14 +1092,19 @@ class CommandHandlers:
                                     'name': player_name,
                                     'position': position,
                                     'team': team_name,
-                                    'total_points': 0,
-                                    'weeks_played': 0,
-                                    'added_week': week
+                                    'total_points': cumulative_points,  # Store latest cumulative total
+                                    'weeks_on_roster': 0,
+                                    'added_week': week,
+                                    'last_seen_week': week
                                 }
                             
-                            if points > 0:
-                                waiver_pickups[player_id]['total_points'] += points
-                                waiver_pickups[player_id]['weeks_played'] += 1
+                            # Update with latest cumulative total and track weeks on roster
+                            waiver_pickups[player_id]['total_points'] = cumulative_points  # Update to latest
+                            waiver_pickups[player_id]['last_seen_week'] = week
+                            waiver_pickups[player_id]['weeks_on_roster'] += 1
+                            
+                            # Update team owner (in case player was traded/picked up by different team)
+                            waiver_pickups[player_id]['team'] = team_name
                 
                 except Exception as e:
                     print(f"Error getting week {week} roster data: {e}")
@@ -1113,15 +1119,20 @@ class CommandHandlers:
             # STEP 3: Find top waiver gems
             top_gems = []
             for player_id, stats in waiver_pickups.items():
-                if stats['weeks_played'] >= 2:  # At least 2 weeks played
-                    ppg = stats['total_points'] / stats['weeks_played']
+                # Calculate weeks played (from when added to last seen)
+                weeks_played = stats['last_seen_week'] - stats['added_week'] + 1
+                
+                # Must have been on roster for at least 2 weeks and scored points
+                if weeks_played >= 2 and stats['total_points'] > 0:
+                    # PPG = total points / weeks since pickup
+                    ppg = stats['total_points'] / weeks_played
                     top_gems.append({
                         'name': stats['name'],
                         'position': stats['position'],
                         'team': stats['team'],
                         'total_points': stats['total_points'],
                         'ppg': ppg,
-                        'weeks_played': stats['weeks_played'],
+                        'weeks_played': weeks_played,
                         'added_week': stats['added_week']
                     })
             

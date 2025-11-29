@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 title Fantasy Football Bot
 echo ============================================================
 echo   Fantasy Football Analytics Bot

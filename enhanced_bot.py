@@ -1,5 +1,9 @@
 """
-Final Working Bot - Clean version with no scheduler
+Enhanced Fantasy Football Bot with Improvements
+- Better error handling
+- Rate limiting
+- Health monitoring
+- Status command
 """
 import logging
 import os
@@ -7,13 +11,19 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
+from bot_enhancements import RateLimiter, BotHealth, safe_command
+
 # Load environment
 load_dotenv()
 
 # Set up logging
 logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    level=logging.INFO,
+    handlers=[
+        logging.FileHandler('bot.log'),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -24,11 +34,16 @@ analytics = None
 command_handlers = None
 user_mapping = None
 user_commands = None
+team_picker = None
+
+# Bot enhancements
+rate_limiter = RateLimiter(calls=10, period=60)  # 10 commands per minute
+bot_health = BotHealth()
 
 
 def init():
     """Initialize components"""
-    global espn_api, state_manager, analytics, command_handlers, user_mapping, user_commands
+    global espn_api, state_manager, analytics, command_handlers, user_mapping, user_commands, team_picker
     
     if command_handlers is None:
         from espn_api import ESPNAPI
@@ -45,8 +60,31 @@ def init():
         user_mapping = UserMapping()
         command_handlers = CommandHandlers(espn_api, state_manager, analytics)
         user_commands = UserCommands(espn_api, user_mapping)
-        global team_picker
         team_picker = TeamPicker(espn_api, user_mapping)
+        
+        # Attach health tracker to handlers
+        command_handlers.health = bot_health
+        user_commands.health = bot_health
+
+
+async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show bot status and health"""
+    try:
+        status = bot_health.get_status()
+        
+        message = "🤖 **BOT STATUS** 🤖\n\n"
+        message += f"⏱️ **Uptime:** {status['uptime']}\n"
+        message += f"📊 **Commands Processed:** {status['commands_processed']}\n"
+        message += f"❌ **Errors:** {status['errors']}\n"
+        
+        if status['last_error']:
+            message += f"\n⚠️ **Last Error:**\n`{status['last_error'][:100]}...`\n"
+        
+        message += "\n✅ Bot is running normally!"
+        
+        await update.message.reply_text(message, parse_mode='Markdown')
+    except Exception as e:
+        await update.message.reply_text(f"Error getting status: {str(e)}")
 
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -63,17 +101,21 @@ async def recap_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     init()
     await command_handlers.recap_command(update, context)
 
+
 async def season_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     init()
     await command_handlers.season_command(update, context)
+
 
 async def parlay_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     init()
     await command_handlers.parlay_command(update, context)
 
+
 async def yolo_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     init()
     await command_handlers.yolo_command(update, context)
+
 
 async def luck_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     init()
@@ -168,7 +210,7 @@ def main():
             pass  # If reconfigure fails, continue without emojis
     
     print("="*60)
-    print("  Fantasy Football Analytics Bot")
+    print("  Fantasy Football Analytics Bot - Enhanced")
     print("="*60)
     print()
     print("Starting...")
@@ -179,6 +221,7 @@ def main():
     # Add handlers
     app.add_handler(CommandHandler("start", help_cmd))
     app.add_handler(CommandHandler("help", help_cmd))
+    app.add_handler(CommandHandler("status", status_cmd))
     app.add_handler(CommandHandler("power", power_cmd))
     app.add_handler(CommandHandler("recap", recap_cmd))
     app.add_handler(CommandHandler("season", season_cmd))
@@ -217,6 +260,7 @@ def main():
     print("   /pickteam - PICK YOUR TEAM (with buttons!)")
     print("   /myteam   - See your team stats")
     print("   /power    - Power rankings")
+    print("   /status   - Bot health check")
     print("   /help     - List all commands")
     print()
     print("Bot running... (Ctrl+C to stop)")
