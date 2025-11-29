@@ -194,3 +194,9 @@ Once you have real odds working:
 
 **The bot will automatically use real odds when available, and fall back to synthetic odds if not!**
 
+
+
+
+
+
+

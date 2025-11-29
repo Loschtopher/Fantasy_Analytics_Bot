@@ -133,3 +133,9 @@ class TeamPicker:
         """Get the callback query handler for team selection"""
         return CallbackQueryHandler(self.handle_team_selection, pattern="^pickteam_")
 
+
+
+
+
+
+

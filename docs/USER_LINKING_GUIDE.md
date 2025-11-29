@@ -168,3 +168,9 @@ Remove a user's team link
 
 **Your bot is ready to link users to teams!** 🏈👥
 
+
+
+
+
+
+

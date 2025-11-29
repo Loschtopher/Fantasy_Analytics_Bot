@@ -1046,71 +1046,99 @@ class CommandHandlers:
                 return
             
             # STEP 2: Track waiver pickups (players NOT in Week 1)
-            waiver_pickups = {}  # player_id -> {name, position, team_owner, total_points, weeks_on_roster, added_week, last_seen_week}
+            waiver_pickups = {}  # player_id -> {name, position, team_owner, total_points, added_week, last_seen_week}
             
             # Go through weeks 2+ to find waiver additions
+            # IMPORTANT: Must use matchup data to get ACTUAL fantasy points scored
             for week in range(2, current_week):
-                params = {'view': ['mRoster', 'mTeam'], 'scoringPeriodId': week}
+                params = {'view': ['mMatchup', 'mTeam'], 'scoringPeriodId': week}
                 
                 try:
                     week_data = self.espn_api._make_request(endpoint, params)
                     
-                    if 'teams' not in week_data:
+                    if 'schedule' not in week_data:
                         continue
                     
-                    for team in week_data['teams']:
-                        team_name = team.get('name', 'Unknown')
-                        roster = team.get('roster', {})
-                        entries = roster.get('entries', [])
+                    # Process matchups to get actual fantasy points
+                    for matchup in week_data['schedule']:
+                        matchup_period = matchup.get('matchupPeriodId')
                         
-                        for entry in entries:
-                            player_entry = entry.get('playerPoolEntry', {})
-                            player_info = player_entry.get('player', {})
+                        if matchup_period != week:
+                            continue
+                        
+                        # Check both home and away teams
+                        for team_key in ['home', 'away']:
+                            team_data = matchup.get(team_key, {})
+                            team_id = team_data.get('teamId')
                             
-                            player_id = player_info.get('id')
-                            if not player_id:
-                                continue
+                            # Get team name from teams list
+                            team_name = 'Unknown'
+                            if 'teams' in week_data:
+                                for t in week_data['teams']:
+                                    if t.get('id') == team_id:
+                                        team_name = t.get('name', 'Unknown')
+                                        break
                             
-                            # ONLY track players who were NOT drafted (not in Week 1)
-                            if player_id in drafted_players:
-                                continue
+                            # Get roster with ACTUAL points from matchup
+                            roster_entries = team_data.get('rosterForCurrentScoringPeriod', {}).get('entries', [])
                             
-                            player_name = player_info.get('fullName', 'Unknown')
-                            position_id = player_info.get('defaultPositionId', 0)
-                            
-                            # Get position name (ESPN position IDs)
-                            position_map = {1: 'QB', 2: 'RB', 3: 'WR', 4: 'TE', 5: 'K', 16: 'D/ST', 17: 'K'}
-                            position = position_map.get(position_id, 'FLEX')
-                            
-                            # Get points - appliedStatTotal is CUMULATIVE season total
-                            # So we only need to store the latest value, not sum across weeks
-                            cumulative_points = player_entry.get('appliedStatTotal', 0)
-                            
-                            # Track waiver pickup
-                            if player_id not in waiver_pickups:
-                                waiver_pickups[player_id] = {
-                                    'name': player_name,
-                                    'position': position,
-                                    'team': team_name,
-                                    'total_points': cumulative_points,  # Store latest cumulative total
-                                    'weeks_on_roster': 0,
-                                    'added_week': week,
-                                    'last_seen_week': week
-                                }
-                            
-                            # Update with latest cumulative total and track weeks on roster
-                            waiver_pickups[player_id]['total_points'] = cumulative_points  # Update to latest
-                            waiver_pickups[player_id]['last_seen_week'] = week
-                            waiver_pickups[player_id]['weeks_on_roster'] += 1
-                            
-                            # Update team owner (in case player was traded/picked up by different team)
-                            waiver_pickups[player_id]['team'] = team_name
+                            for entry in roster_entries:
+                                player_entry = entry.get('playerPoolEntry', {})
+                                player_info = player_entry.get('player', {})
+                                
+                                player_id = player_info.get('id')
+                                if not player_id:
+                                    continue
+                                
+                                # ONLY track players who were NOT drafted (not in Week 1)
+                                if player_id in drafted_players:
+                                    continue
+                                
+                                player_name = player_info.get('fullName', 'Unknown')
+                                position_id = player_info.get('defaultPositionId', 0)
+                                
+                                # Get position name (ESPN position IDs)
+                                position_map = {1: 'QB', 2: 'RB', 3: 'WR', 4: 'TE', 5: 'K', 16: 'D/ST', 17: 'K'}
+                                position = position_map.get(position_id, 'FLEX')
+                                
+                                # Get ACTUAL fantasy points from matchup data
+                                weekly_points = player_entry.get('appliedStatTotal', 0)
+                                
+                                # Track waiver pickup
+                                if player_id not in waiver_pickups:
+                                    waiver_pickups[player_id] = {
+                                        'name': player_name,
+                                        'position': position,
+                                        'team': team_name,
+                                        'total_points': 0,
+                                        'added_week': week,
+                                        'last_seen_week': week
+                                    }
+                                
+                                # Sum up weekly points
+                                waiver_pickups[player_id]['total_points'] += weekly_points
+                                waiver_pickups[player_id]['last_seen_week'] = week
+                                
+                                # Update team owner (in case player was traded/picked up by different team)
+                                waiver_pickups[player_id]['team'] = team_name
                 
                 except Exception as e:
-                    print(f"Error getting week {week} roster data: {e}")
+                    print(f"Error getting week {week} matchup data: {e}")
                     continue
             
             print(f"💎 Found {len(waiver_pickups)} waiver pickups")
+            
+            # Debug: Show a few examples with realistic PPG
+            if waiver_pickups:
+                print("\n📊 Waiver Pickup Calculations (showing top 3):")
+                sorted_samples = sorted(waiver_pickups.items(), 
+                                      key=lambda x: x[1]['total_points'], 
+                                      reverse=True)[:3]
+                for player_id, stats in sorted_samples:
+                    weeks = stats['last_seen_week'] - stats['added_week'] + 1
+                    ppg = stats['total_points'] / weeks if weeks > 0 else 0
+                    print(f"  {stats['name']} ({stats['position']}): {stats['total_points']:.1f} pts / {weeks} weeks = {ppg:.1f} PPG")
+                print()
             
             if not waiver_pickups:
                 await update.message.reply_text("No waiver pickups found yet! Everyone still has their drafted players.")
@@ -1119,20 +1147,21 @@ class CommandHandlers:
             # STEP 3: Find top waiver gems
             top_gems = []
             for player_id, stats in waiver_pickups.items():
-                # Calculate weeks played (from when added to last seen)
-                weeks_played = stats['last_seen_week'] - stats['added_week'] + 1
+                # Calculate weeks on roster (from when added to last seen)
+                # This counts ALL weeks they were on a roster, not just weeks they scored
+                weeks_on_roster = stats['last_seen_week'] - stats['added_week'] + 1
                 
-                # Must have been on roster for at least 2 weeks and scored points
-                if weeks_played >= 2 and stats['total_points'] > 0:
-                    # PPG = total points / weeks since pickup
-                    ppg = stats['total_points'] / weeks_played
+                # Must have been on roster for at least 2 weeks and scored at least 1 point total
+                if weeks_on_roster >= 2 and stats['total_points'] > 0:
+                    # PPG = total points / weeks on roster
+                    ppg = stats['total_points'] / weeks_on_roster
                     top_gems.append({
                         'name': stats['name'],
                         'position': stats['position'],
                         'team': stats['team'],
                         'total_points': stats['total_points'],
                         'ppg': ppg,
-                        'weeks_played': weeks_played,
+                        'weeks_played': weeks_on_roster,
                         'added_week': stats['added_week']
                     })
             

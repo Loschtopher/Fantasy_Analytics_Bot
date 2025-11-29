@@ -247,3 +247,9 @@ class OddsAPI:
         
         return longshot_props[:limit]
 
+
+
+
+
+
+
